@@ -126,3 +126,45 @@ Thanks for AVP_SLAM(Tong Qin, Tongqing Chen, Yilun Chen, and Qing Su:Semantic Vi
 Thanks for TurtleZhong(https://github.com/TurtleZhong/AVP-SLAM-SIM), whose simulated environment help me a lot.
 
 Thanks for huchunxu(https://github.com/huchunxu/ros_exploring), whose simulated robot model help me a lot.
+
+
+
+复现工作链接：
+https://github.com/Forrest-Z/AVP-SLAM
+
+
+
+工程代码解读：
+
+avp_slam_plus目录下
+
+-config/configFile.yaml
+
+配置文件，相机内参、相机外参，点云配准算法参数、gazebo参数、里程计噪声和协方差等
+
+-launch/slamRGB.launch
+
+RGB环视相机建图功能的启动文件，包括：多摄像头的仿真环境；加载配置文件；启动RGB2Piontcloud节点；启动定位建图节点；启动里程计节点；启动q2rpy转换节点。
+
+-src/pointCloudFromRGB.cpp
+
+将RGB图转换成BEV视角的点云数据。读取参数后对同步好的每一个相机帧都进行：畸变矫正；语义分割（实际上是按颜色筛选）、车道线点云投影到bev视角；点云处理、降采样。最后将处理好的点云拼接到同一帧中，发布出去。
+
+-src/mapping.cpp
+
+订阅图像点云数据，进行点云SLAM过程，建好的图发布出去。SLAM过程主要为：语义特征点的提取；根据当前点云帧计算当前帧位姿；将关键帧合并到全局点云地图。
+
+待改进部分：
+1、语义分割用的色块分割，需要用学习模型进行图像语义分割，打上语义标签；
+
+2、点云拼接之间用的是直接合并，放到一块进行索引：
+
+*globalFeatureCloud = *globalFeatureCloud + *currentFeatureCloud;
+
+可能需要添加配准过程再拼接；
+
+3、bev视角点云获取流程：畸变矫正->语义分割得到点云->点云透视变换投影到bev视角->多路点云环视拼接；一般车位检测是在AVM视角下进行，所以需要变成：畸变矫正->AVM环视拼接->语义分割得点云->映射到物理空间
+
+4、相当于仅具备前端功能的粗糙激光里程计，缺失后端优化部分，可能需要借鉴liosam的后端优化部分，或者往好的激光框架上迁移。
+
+5、新增的全局优化是用单独的一个python脚本离线完成，使用的是gtsam工具。
